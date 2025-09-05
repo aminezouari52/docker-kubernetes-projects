@@ -1,0 +1,58 @@
+services:
+  database:
+    image: postgres:15
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    image: localhost:5000/backend:1.0.0
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    container_name: backend_container
+    env_file:
+      - ./.env.backend
+    depends_on:
+      - database
+    restart: unless-stopped
+
+  frontend:
+    image: localhost:5000/frontend:1.0.0
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    container_name: frontend_container
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  reverse_proxy:
+    image: "jc21/nginx-proxy-manager:2"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "81:81" # dashboard
+      - "443:443"
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    command:
+      - "--label-enable"
+      - "--interval"
+      - "30"
+      - "--rolling-restart"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  postgres_data:
